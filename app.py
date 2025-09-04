@@ -7,6 +7,7 @@ import pytesseract
 import os
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
+import locale
 
 load_dotenv()
 
@@ -48,38 +49,61 @@ def normalizar_texto(texto):
     return re.sub(r"\s+", " ", texto)
 
 
+locale.setlocale(locale.LC_ALL, "es_AR.UTF-8")  # para formato con , decimal y . miles
+
 def procesar_datos(texto):
     texto_normalizado = normalizar_texto(texto)
 
-    # Buscar facturas con todos los patrones
+    # 🔎 Nuevos patrones de factura
+    FACTURA_PATTERNS_EXT = FACTURA_PATTERNS + [
+        r"Factura\s*n[úu]mero[:\s]*\d+",
+        r"Nro\s*Factura[:\s]*[\w-]+",
+        r"Factura\s*ID[:\s]*\d+",
+        r"Comprobante\s*N[º°]?\s*[\w-]+"
+    ]
+
+    # Buscar facturas
     facturas = []
-    for pattern in FACTURA_PATTERNS:
-        encontrados = re.findall(
-            pattern, texto_normalizado, flags=re.IGNORECASE)
-        for f in encontrados:
-            facturas.append(f.strip())
+    for pattern in FACTURA_PATTERNS_EXT:
+        encontrados = re.findall(pattern, texto_normalizado, flags=re.IGNORECASE)
+        facturas.extend([f.strip() for f in encontrados])
 
-    # Buscar importes
-    importes = re.findall(r"\$ ?([\d.,]+)", texto_normalizado)
+    # Buscar importes en ARS / USD
+    importes_ars = re.findall(r"(?:\$|ARS)\s*([\d.,]+)", texto_normalizado, flags=re.IGNORECASE)
+    importes_usd = re.findall(r"(?:USD)\s*([\d.,]+)", texto_normalizado, flags=re.IGNORECASE)
 
-    # Convertir importes a float
-    importes_limpios = []
-    for imp in importes:
-        imp_clean = imp.replace(".", "").replace(",", ".")
+    def limpiar_importe(imp):
+        imp = imp.replace(".", "").replace(",", ".")
         try:
-            importes_limpios.append(float(imp_clean))
-        except ValueError:
-            importes_limpios.append(0.0)
+            return float(imp)
+        except:
+            return 0.0
 
-    # Igualar longitudes
-    max_len = max(len(facturas), len(importes_limpios))
+    importes_ars = [limpiar_importe(i) for i in importes_ars]
+    importes_usd = [limpiar_importe(i) for i in importes_usd]
+
+    # Igualar longitudes (separado para ARS y USD)
+    max_len = max(len(facturas), len(importes_ars), len(importes_usd))
     facturas += ["SIN FACTURA"] * (max_len - len(facturas))
-    importes_limpios += [0.0] * (max_len - len(importes_limpios))
+    importes_ars += [0.0] * (max_len - len(importes_ars))
+    importes_usd += [0.0] * (max_len - len(importes_usd))
 
-    # DataFrame final
-    df = pd.DataFrame({"Factura": facturas, "Importe": importes_limpios})
-    total = df["Importe"].sum()
-    df.loc[len(df)] = ["TOTAL GENERAL", total]
+    # Armar DataFrame
+    df = pd.DataFrame({
+        "Factura": facturas,
+        "Importe_ARS": importes_ars,
+        "Importe_USD": importes_usd
+    })
+
+    # Totales
+    total_ars = df["Importe_ARS"].sum()
+    total_usd = df["Importe_USD"].sum()
+    df.loc[len(df)] = ["TOTAL GENERAL", total_ars, total_usd]
+
+    # 🔹 Formatear los números con coma y punto
+    df["Importe_ARS"] = df["Importe_ARS"].apply(lambda x: locale.format_string("%.2f", x, grouping=True))
+    df["Importe_USD"] = df["Importe_USD"].apply(lambda x: locale.format_string("%.2f", x, grouping=True))
+
     return df
 
 
