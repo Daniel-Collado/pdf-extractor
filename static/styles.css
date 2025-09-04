@@ -1,0 +1,21 @@
+body {
+    background: linear-gradient(135deg, #e0f7fa, #ffffff);
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .card {
+        max-width: 500px;
+        margin: auto;
+        border-radius: 20px;
+    }
+    
+    h1 {
+        color: #0077b6;
+        font-weight: bold;
+    }
+    
+    button {
+        border-radius: 30px !important;
+        padding: 10px 30px !important;
+    }
+    
