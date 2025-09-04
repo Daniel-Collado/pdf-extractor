@@ -1,0 +1,28 @@
+# Entornos virtuales
+venv/
+.env
+*.env
+
+# Archivos de sistema
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+.DS_Store
+Thumbs.db
+
+# Carpeta de uploads
+uploads/
+
+# Archivos temporales de Jupyter
+.ipynb_checkpoints/
+
+# Archivos de logs
+*.log
+
+# Archivos de compilación / cache
+*.egg-info/
+.eggs/
+build/
+dist/

@@ -5,12 +5,18 @@ from flask import Flask, request, render_template, send_file, jsonify
 from pdf2image import convert_from_path
 import pytesseract
 import os
+from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
+
+load_dotenv()
 
 app = Flask(__name__)
 
-# Ajustá la ruta a tesseract si hace falta
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# Ruta a tesseract (solo en Windows local; en Render lo instalás en Dockerfile)
+pytesseract.pytesseract.tesseract_cmd = os.getenv(
+    "TESSERACT_CMD",
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe"  # valor por defecto en Windows
+)
 
 # Patrones configurables
 FACTURA_PATTERNS = [
@@ -143,4 +149,6 @@ def download(fmt):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # 🔹 El puerto se toma de la variable de entorno (Render lo define automáticamente).
+    port = int(os.getenv("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
